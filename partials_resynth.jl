@@ -78,7 +78,7 @@ Na*decimate
 
 # ╔═╡ e3aa55ec-6427-426c-9046-042dc24ba252
 begin
-	m = 1
+	m = 6
 	cc = "0$(m)"
 	files = searchdir(namedir1,"s"*cc*"p")
 	sins = Array{Float64,2}(undef,N0,length(files))
@@ -90,11 +90,8 @@ begin
 	s=sum(sins,dims=2)
 	maxs = maximum(abs.(s))
 	wavwrite(s/maxs,"campana2_"*cc*".wav";Fs=fs)   
-	plot((1:decimate:N)/fs,amps[:,1:length(files),m],size=(1200,600))
+	plot((1:decimate:N)/fs,amps[:,1:length(files),m],size=(1200,600),legend=false)
 end
-
-# ╔═╡ 574bd0d4-1a70-4ed5-a044-2f223fd217c8
-size(a1)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1664,6 +1661,5 @@ version = "1.4.1+1"
 # ╠═9146eef3-be4c-4395-8242-0fe82bbf5e97
 # ╠═668ee705-b939-4b64-8973-22c3883a545a
 # ╠═e3aa55ec-6427-426c-9046-042dc24ba252
-# ╠═574bd0d4-1a70-4ed5-a044-2f223fd217c8
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
