@@ -26,15 +26,18 @@ begin
 	decimate = 441
 	fs = 44100
 	maxpars = 30 # cantidad maxima de parciales
-	N = 8*fs
+	N = 10*fs
+	cutdec = 10
 	Na = length(1:decimate:N)
-	N0 = ceil(Int,(Na+1/2)*decimate)
+	N0 = (Na+1-cutdec)*decimate
 	amps = zeros(Float64,Na,maxpars,7);
 	freqs = zeros(Float64,maxpars,7);
 end;
 
 # ╔═╡ 01f98a9a-ace2-43cb-aa12-db5640cb3d79
 function extendpar(h, N, decimate; retro=0.9, slope = 10.0)
+	#decimate the envelope and adds an exponential decay at the end if necessary
+	#returns time and envelope of size length(1:decimate:N)
     N0 = length(h)
     hrs = Filters.resample(h,1/decimate)
     trs = (1:decimate:N0)/fs
@@ -51,10 +54,11 @@ function extendpar(h, N, decimate; retro=0.9, slope = 10.0)
 end    
 
 # ╔═╡ df8ac436-b27c-4001-9960-357f477b446b
-function partial2sin(fname,decimate,N;cutend=1000)
+function partial2sin(fname,decimate,N;cutend=1000,cutdec=10)
+	#create sin from wan in fname (single frequency)
     x,fs,bits,chunk = wavread(fname)
     h = abs.(hilbert(x))[:]
-    # Envolvente decimada
+    # Envolvente decimada y extendida
     td, ad = extendpar(h[1:end-cutend],N,decimate)
     f = fftfreq(length(x), fs)
     y = fft(x)
@@ -62,10 +66,35 @@ function partial2sin(fname,decimate,N;cutend=1000)
     f1 = abs(f[s2])
     # Envolvente resampleada
     a = Filters.resample([0; ad],decimate)
+	# cut the last cutdec*decimate samples because of the filter
+	deleteat!(a,length(a)-cutdec*decimate+1:length(a))
     t = (0:length(a)-1)/fs
     s = a.*sin.(2*pi*f1*t)
     return s, ad, f1
 end 
+
+# ╔═╡ 9146eef3-be4c-4395-8242-0fe82bbf5e97
+Na*decimate
+
+# ╔═╡ e3aa55ec-6427-426c-9046-042dc24ba252
+begin
+	m = 1
+	cc = "0$(m)"
+	files = searchdir(namedir1,"s"*cc*"p")
+	sins = Array{Float64,2}(undef,N0,length(files))
+	for (n,fname) in enumerate(files)
+	    print(fname * "/")
+	    sins[:,n], amps[:,n,m], freqs[n,m] = partial2sin(namedir1 * fname,decimate,N)
+	end
+	#sumo todos en fase y con la amplitud original
+	s=sum(sins,dims=2)
+	maxs = maximum(abs.(s))
+	wavwrite(s/maxs,"campana2_"*cc*".wav";Fs=fs)   
+	plot((1:decimate:N)/fs,amps[:,1:length(files),m],size=(1200,600))
+end
+
+# ╔═╡ 574bd0d4-1a70-4ed5-a044-2f223fd217c8
+size(a1)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1632,6 +1661,9 @@ version = "1.4.1+1"
 # ╠═95d0b380-fe7b-4539-b9f7-aa1cd7be7cff
 # ╠═01f98a9a-ace2-43cb-aa12-db5640cb3d79
 # ╠═df8ac436-b27c-4001-9960-357f477b446b
+# ╠═9146eef3-be4c-4395-8242-0fe82bbf5e97
 # ╠═668ee705-b939-4b64-8973-22c3883a545a
+# ╠═e3aa55ec-6427-426c-9046-042dc24ba252
+# ╠═574bd0d4-1a70-4ed5-a044-2f223fd217c8
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
