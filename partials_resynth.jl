@@ -17,7 +17,7 @@ macro bind(def, element)
 end
 
 # ╔═╡ 4b36e0a0-e20b-11ef-3bb4-191b803c6a25
-using WAV, DSP, FFTW, LsqFit, Plots, JLD, Peaks, PlutoUI
+using WAV, DSP, FFTW, LsqFit, Plots, JLD, Peaks, PlutoUI, CSV
 
 # ╔═╡ 06274aa0-5c40-4569-9b93-12b6dfb39bcc
 function sigmoid(z,z0,s)
@@ -33,6 +33,7 @@ end
 # ╔═╡ 20a0ff42-91b2-4ed1-b7e3-7fd3c704e0aa
 # Findpeaks (supervised) >> wav
 begin
+	# original sound
 	namedir1 = "paf/"
 	fname_original = "L1.WAV"
 	x,fs,bits,chunk = wavread(namedir1*fname_original)
@@ -61,7 +62,7 @@ end
 
 # ╔═╡ df8ac436-b27c-4001-9960-357f477b446b
 function partial2sin(fname,decimate,N;cutend=1000,cutdec=10)
-	#create sin from wan in fname (single frequency)
+	#create sin from wav in fname (single frequency)
     x,fs,bits,chunk = wavread(fname)
     h = abs.(hilbert(x))[:]
     # Envolvente decimada y extendida
@@ -109,9 +110,6 @@ begin
 	scatter!(f[idxs],y3[idxs],title=string(length(idxs)))
 end	
 
-# ╔═╡ f60bb7b7-7d81-45f0-b09b-3ea32169b262
-f[idxs]
-
 # ╔═╡ 71c04459-114c-4f49-b14e-5757005f70b3
 begin
 	ny = fs/2
@@ -122,7 +120,7 @@ begin
 		responsetype = Bandpass(f1/ny,f2/ny)
 		bpfilt = digitalfilter(responsetype, designmethod)
 		xbp = filtfilt(bpfilt,x)
-		wavwrite(xbp,namedir1 * "Lp$(n).wav",Fs=fs)
+		wavwrite(xbp,namedir1 * "Lp" * lpad(n,2,"0") * ".wav",Fs=fs)
 	end
 end	
 
@@ -133,9 +131,9 @@ begin
 	#decimate = 441
 	#fs = 44100
 	#maxpars = 30 # cantidad maxima de parciales
-	decimate = 480
+	decimate = 960
 	#fs = 48000
-	maxpars = 20
+	maxpars = size(idxs)[1]
 	N = 12*fs
 	cutdec = 10
 	Na = length(1:decimate:N)
@@ -162,14 +160,33 @@ begin
 	#sumo todos en fase y con la amplitud original
 	s=sum(sins,dims=2)
 	maxs = maximum(abs.(s))
-	#wavwrite(s/maxs,"campana2_"*cc*".wav";Fs=fs)
 	wavwrite(s/maxs,"campana_paf3.wav";Fs=fs)
 	plot((1:decimate:N)/fs,amps[:,1:length(files)],size=(1200,600),legend=false)
+end
+
+# ╔═╡ 089c225d-2007-49bf-aefa-7efb6751fb12
+begin
+	outfile = "freqs.txt"
+	fout = open(outfile, "w")
+	for f in freqs
+		println(fout, string(round(f,digits=1)))
+	end
+	close(fout)
+end
+
+# ╔═╡ 1361c285-7dff-4bb3-a1fa-123d9e7115e9
+begin
+	fout2 = open("amps.txt", "w")
+	for n in 1:maxpars
+		println(fout2, join([string(a) for a in round.(amps[:,n],sigdigits=3)], " "))
+	end
+	close(fout2)
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
 JLD = "4138dd39-2aa7-5051-a626-17a0bb65d9c8"
@@ -180,6 +197,7 @@ PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 WAV = "8149f6b0-98f6-5db9-b78f-408fbbb8ef88"
 
 [compat]
+CSV = "~0.10.15"
 DSP = "~0.7.10"
 FFTW = "~1.8.0"
 JLD = "~0.13.5"
@@ -196,7 +214,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.7"
 manifest_format = "2.0"
-project_hash = "abbaebd691e8f51ed8a2bdd861ed07206208a100"
+project_hash = "3b0d009faa63125b5dd289e7987b6eb8d518d910"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -301,6 +319,12 @@ git-tree-sha1 = "8873e196c2eb87962a2048b3b8e08946535864a1"
 uuid = "6e34b625-4abd-537c-b88f-471c36dfa7a0"
 version = "1.0.8+2"
 
+[[deps.CSV]]
+deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "PrecompileTools", "SentinelArrays", "Tables", "Unicode", "WeakRefStrings", "WorkerUtilities"]
+git-tree-sha1 = "deddd8725e5e1cc49ee205a1964256043720a6c3"
+uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+version = "0.10.15"
+
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
 git-tree-sha1 = "009060c9a6168704143100f36ab08f06c2af4642"
@@ -404,6 +428,11 @@ deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
 git-tree-sha1 = "1d0a14036acb104d9e89698bd408f63ab58cdc82"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 version = "0.18.20"
+
+[[deps.DataValueInterfaces]]
+git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
+uuid = "e2d170a0-9d28-54be-80f0-106bbe20a464"
+version = "1.0.0"
 
 [[deps.Dates]]
 deps = ["Printf"]
@@ -515,6 +544,17 @@ weakdeps = ["HTTP"]
 
     [deps.FileIO.extensions]
     HTTPExt = "HTTP"
+
+[[deps.FilePathsBase]]
+deps = ["Compat", "Dates"]
+git-tree-sha1 = "7878ff7172a8e6beedd1dea14bd27c3c6340d361"
+uuid = "48062228-2e41-5def-b9a4-89aafe57970f"
+version = "0.9.22"
+weakdeps = ["Mmap", "Test"]
+
+    [deps.FilePathsBase.extensions]
+    FilePathsBaseMmapExt = "Mmap"
+    FilePathsBaseTestExt = "Test"
 
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
@@ -701,6 +741,19 @@ git-tree-sha1 = "b6d6bfdd7ce25b0f9b2f6b3dd56b2673a66c8770"
 uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
 version = "0.2.5"
 
+[[deps.InlineStrings]]
+git-tree-sha1 = "45521d31238e87ee9f9732561bfee12d4eebd52d"
+uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
+version = "1.4.2"
+
+    [deps.InlineStrings.extensions]
+    ArrowTypesExt = "ArrowTypes"
+    ParsersExt = "Parsers"
+
+    [deps.InlineStrings.weakdeps]
+    ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
+    Parsers = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
+
 [[deps.IntelOpenMP_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl"]
 git-tree-sha1 = "10bd689145d2c3b2a9844005d01087cc1194e79e"
@@ -720,6 +773,11 @@ version = "0.2.2"
 git-tree-sha1 = "42d5f897009e7ff2cf88db414a389e5ed1bdd023"
 uuid = "c8e1da08-722c-5040-9ed9-7db0dc04731e"
 version = "1.10.0"
+
+[[deps.IteratorInterfaceExtensions]]
+git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
+uuid = "82899510-4779-5014-852e-03e436cf321d"
+version = "1.0.0"
 
 [[deps.JLD]]
 deps = ["Compat", "FileIO", "H5Zblosc", "HDF5", "Printf"]
@@ -1158,6 +1216,12 @@ version = "4.0.12"
     MakieCore = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
     MutableArithmetics = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
 
+[[deps.PooledArrays]]
+deps = ["DataAPI", "Future"]
+git-tree-sha1 = "36d8b4b899628fb92c2749eb488d884a926614d3"
+uuid = "2dfb63ee-cc39-5dd5-95bd-886bf059d720"
+version = "1.4.3"
+
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
 git-tree-sha1 = "5aa36f7049a63a1528fe8f7c3f2113413ffd4e1f"
@@ -1280,6 +1344,12 @@ git-tree-sha1 = "3bac05bc7e74a75fd9cba4295cde4045d9fe2386"
 uuid = "6c6a2e73-6563-6170-7368-637461726353"
 version = "1.2.1"
 
+[[deps.SentinelArrays]]
+deps = ["Dates", "Random"]
+git-tree-sha1 = "d0553ce4031a081cc42387a9b9c8441b7d99f32d"
+uuid = "91c51154-3ec4-41a3-a24f-3f23e20d615c"
+version = "1.4.7"
+
 [[deps.Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 
@@ -1382,6 +1452,18 @@ deps = ["Dates"]
 uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 version = "1.0.3"
 
+[[deps.TableTraits]]
+deps = ["IteratorInterfaceExtensions"]
+git-tree-sha1 = "c06b2f539df1c6efa794486abfb6ed2022561a39"
+uuid = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
+version = "1.0.1"
+
+[[deps.Tables]]
+deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "OrderedCollections", "TableTraits"]
+git-tree-sha1 = "598cd7c1f68d1e205689b1c2fe65a9f85846f297"
+uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
+version = "1.12.0"
+
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
 uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
@@ -1473,6 +1555,17 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "93f43ab61b16ddfb2fd3bb13b3ce241cafb0e6c9"
 uuid = "2381bf8a-dfd0-557d-9999-79630e7b1b91"
 version = "1.31.0+0"
+
+[[deps.WeakRefStrings]]
+deps = ["DataAPI", "InlineStrings", "Parsers"]
+git-tree-sha1 = "b1be2855ed9ed8eac54e5caff2afcdb442d52c23"
+uuid = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
+version = "1.4.2"
+
+[[deps.WorkerUtilities]]
+git-tree-sha1 = "cd1659ba0d57b71a464a29e64dbc67cfe83d54e7"
+uuid = "76eceee3-57b5-4d4a-8e66-0e911cebbf60"
+version = "1.6.1"
 
 [[deps.XML2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libiconv_jll", "Zlib_jll"]
@@ -1775,9 +1868,10 @@ version = "1.4.1+1"
 # ╠═645f615d-6f83-47a0-8323-758318ecd106
 # ╠═a204e723-9d2a-43b3-b096-b8b6c2fc3e07
 # ╟─9f35af0b-6745-4229-85a0-617beb0ffd63
-# ╠═f60bb7b7-7d81-45f0-b09b-3ea32169b262
 # ╠═71c04459-114c-4f49-b14e-5757005f70b3
 # ╠═668ee705-b939-4b64-8973-22c3883a545a
 # ╠═e3aa55ec-6427-426c-9046-042dc24ba252
+# ╠═089c225d-2007-49bf-aefa-7efb6751fb12
+# ╠═1361c285-7dff-4bb3-a1fa-123d9e7115e9
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
