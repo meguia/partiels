@@ -4,8 +4,20 @@
 using Markdown
 using InteractiveUtils
 
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    #! format: off
+    quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+    #! format: on
+end
+
 # ╔═╡ 4b36e0a0-e20b-11ef-3bb4-191b803c6a25
-using WAV, DSP, FFTW, LsqFit, Plots, JLD
+using WAV, DSP, FFTW, LsqFit, Plots, JLD, Peaks, PlutoUI
 
 # ╔═╡ 06274aa0-5c40-4569-9b93-12b6dfb39bcc
 function sigmoid(z,z0,s)
@@ -18,20 +30,14 @@ function padarray(x,val,N)
     return [x; fill(val,N-n0)]  
 end    
 
-# ╔═╡ 668ee705-b939-4b64-8973-22c3883a545a
+# ╔═╡ 20a0ff42-91b2-4ed1-b7e3-7fd3c704e0aa
+# Findpeaks (supervised) >> wav
 begin
-	searchdir(path,key) = filter(x->occursin(key,x), readdir(path))
-	namedir1 = "parciales1/"
-	namedir2 = "parciales2/"
-	decimate = 441
-	fs = 44100
-	maxpars = 30 # cantidad maxima de parciales
-	N = 10*fs
-	cutdec = 10
-	Na = length(1:decimate:N)
-	N0 = (Na+1-cutdec)*decimate
-	amps = zeros(Float64,Na,maxpars,7);
-	freqs = zeros(Float64,maxpars,7);
+	namedir1 = "paf/"
+	fname_original = "L1.WAV"
+	x,fs,bits,chunk = wavread(namedir1*fname_original)
+	f = rfftfreq(length(x), fs)
+    y = rfft(x)
 end;
 
 # ╔═╡ 01f98a9a-ace2-43cb-aa12-db5640cb3d79
@@ -73,24 +79,92 @@ function partial2sin(fname,decimate,N;cutend=1000,cutdec=10)
     return s, ad, f1
 end 
 
-# ╔═╡ 9146eef3-be4c-4395-8242-0fe82bbf5e97
-Na*decimate
+# ╔═╡ 645f615d-6f83-47a0-8323-758318ecd106
+begin
+	fmax = 5000
+	nmax = findfirst(f .> fmax)
+	y2 = 10*log10.(abs.(y[1:nmax]))
+	y3 = filt(digitalfilter(Lowpass(0.1), Butterworth(3)), y2)
+end;
+	
+
+# ╔═╡ 9f35af0b-6745-4229-85a0-617beb0ffd63
+md"""
+wdw $(@bind wdw Slider(10:10:300,default=150;show_value=true)) 
+prom $(@bind prom Slider(1.0:0.1:29.0,default=1.0;show_value=true)) \
+height $(@bind height Slider(-20:1:30,default=0;show_value=true)) 
+width $(@bind width Slider(1:1:40,default=10;show_value=true)) \
+"""
+
+# ╔═╡ a204e723-9d2a-43b3-b096-b8b6c2fc3e07
+begin
+	window = wdw
+	pks = findmaxima(y3,window)
+	pks = peakproms(pks)
+	pks = peakwidths(pks)
+	sel = @. (pks.proms > prom) && (pks.heights > height) && (pks.widths > width)
+	idxs = pks.indices[sel]
+	db = pks.heights[sel]
+	plot(f[1:nmax],y2)
+	scatter!(f[idxs],y3[idxs],title=string(length(idxs)))
+end	
+
+# ╔═╡ f60bb7b7-7d81-45f0-b09b-3ea32169b262
+f[idxs]
+
+# ╔═╡ 71c04459-114c-4f49-b14e-5757005f70b3
+begin
+	ny = fs/2
+	designmethod =  Butterworth(5)
+	for (n,idx) in enumerate(idxs)
+		f1 = f[idx]/1.03
+		f2 = f[idx]*1.03
+		responsetype = Bandpass(f1/ny,f2/ny)
+		bpfilt = digitalfilter(responsetype, designmethod)
+		xbp = filtfilt(bpfilt,x)
+		wavwrite(xbp,namedir1 * "Lp$(n).wav",Fs=fs)
+	end
+end	
+
+# ╔═╡ 668ee705-b939-4b64-8973-22c3883a545a
+begin
+	searchdir(path,key) = filter(x->occursin(key,x), readdir(path))
+	#namedir1 = "parciales1/"
+	#decimate = 441
+	#fs = 44100
+	#maxpars = 30 # cantidad maxima de parciales
+	decimate = 480
+	#fs = 48000
+	maxpars = 20
+	N = 12*fs
+	cutdec = 10
+	Na = length(1:decimate:N)
+	if iseven(decimate)
+		N0 = ceil(Int,(Na+1/2-cutdec)*decimate)
+	else
+		N0 = (Na+1-cutdec)*decimate
+	end	
+	amps = zeros(Float64,Na,maxpars);
+	freqs = zeros(Float64,maxpars);
+end;
 
 # ╔═╡ e3aa55ec-6427-426c-9046-042dc24ba252
 begin
-	m = 6
-	cc = "0$(m)"
-	files = searchdir(namedir1,"s"*cc*"p")
+	#m = 6
+	#cc = "0$(m)"
+	#files = searchdir(namedir1,"s"*cc*"p")
+	files = searchdir(namedir1,"Lp")
 	sins = Array{Float64,2}(undef,N0,length(files))
 	for (n,fname) in enumerate(files)
 	    print(fname * "/")
-	    sins[:,n], amps[:,n,m], freqs[n,m] = partial2sin(namedir1 * fname,decimate,N)
+	    sins[:,n], amps[:,n], freqs[n] = partial2sin(namedir1 * fname,decimate,N)
 	end
 	#sumo todos en fase y con la amplitud original
 	s=sum(sins,dims=2)
 	maxs = maximum(abs.(s))
-	wavwrite(s/maxs,"campana2_"*cc*".wav";Fs=fs)   
-	plot((1:decimate:N)/fs,amps[:,1:length(files),m],size=(1200,600),legend=false)
+	#wavwrite(s/maxs,"campana2_"*cc*".wav";Fs=fs)
+	wavwrite(s/maxs,"campana_paf3.wav";Fs=fs)
+	plot((1:decimate:N)/fs,amps[:,1:length(files)],size=(1200,600),legend=false)
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -100,15 +174,19 @@ DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
 JLD = "4138dd39-2aa7-5051-a626-17a0bb65d9c8"
 LsqFit = "2fda8390-95c7-5789-9bda-21331edee243"
+Peaks = "18e31ff7-3703-566c-8e60-38913d67486b"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 WAV = "8149f6b0-98f6-5db9-b78f-408fbbb8ef88"
 
 [compat]
-DSP = "~0.8.0"
+DSP = "~0.7.10"
 FFTW = "~1.8.0"
 JLD = "~0.13.5"
 LsqFit = "~0.15.0"
+Peaks = "~0.5.3"
 Plots = "~1.40.9"
+PlutoUI = "~0.7.60"
 WAV = "~1.2.0"
 """
 
@@ -118,7 +196,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.7"
 manifest_format = "2.0"
-project_hash = "b15f8a6e0457ee4dea059af6bf018e6cfdfdab70"
+project_hash = "abbaebd691e8f51ed8a2bdd861ed07206208a100"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -133,6 +211,12 @@ version = "1.5.0"
     [deps.AbstractFFTs.weakdeps]
     ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
     Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[[deps.AbstractPlutoDingetjes]]
+deps = ["Pkg"]
+git-tree-sha1 = "6e1d2a35f2f90a4bc7c2ed98079b2ba09c35b83a"
+uuid = "6e696c72-6542-2067-7265-42206c756150"
+version = "1.3.2"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra", "Requires"]
@@ -194,11 +278,6 @@ uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
-[[deps.Bessels]]
-git-tree-sha1 = "4435559dc39793d53a9e3d278e185e920b4619ef"
-uuid = "0e736298-9ec6-45e8-9647-e4fc86a2fe38"
-version = "0.2.8"
-
 [[deps.BitFlags]]
 git-tree-sha1 = "0691e34b3bb8be9307330f88d1a3c3f25466c24d"
 uuid = "d1d4a3ce-64b1-5f1a-9ba4-7e7e69966f35"
@@ -242,21 +321,15 @@ version = "3.27.1"
 
 [[deps.ColorTypes]]
 deps = ["FixedPointNumbers", "Random"]
-git-tree-sha1 = "c7acce7a7e1078a20a285211dd73cd3941a871d6"
+git-tree-sha1 = "b10d0b65641d57b8b4d5e234446582de5047050d"
 uuid = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
-version = "0.12.0"
-
-    [deps.ColorTypes.extensions]
-    StyledStringsExt = "StyledStrings"
-
-    [deps.ColorTypes.weakdeps]
-    StyledStrings = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
+version = "0.11.5"
 
 [[deps.ColorVectorSpace]]
 deps = ["ColorTypes", "FixedPointNumbers", "LinearAlgebra", "Requires", "Statistics", "TensorCore"]
-git-tree-sha1 = "8b3b6f87ce8f65a2b4f857528fd8d70086cd72b1"
+git-tree-sha1 = "a1f44953f2382ebb937d60dafbe2deea4bd23249"
 uuid = "c3611d14-8923-5661-9e6a-0046d554d3a4"
-version = "0.11.0"
+version = "0.10.0"
 weakdeps = ["SpecialFunctions"]
 
     [deps.ColorVectorSpace.extensions]
@@ -316,16 +389,10 @@ uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
 version = "0.6.3"
 
 [[deps.DSP]]
-deps = ["Bessels", "FFTW", "IterTools", "LinearAlgebra", "Polynomials", "Random", "Reexport", "SpecialFunctions", "Statistics"]
-git-tree-sha1 = "489db9d78b53e44fb753d225c58832632d74ab10"
+deps = ["Compat", "FFTW", "IterTools", "LinearAlgebra", "Polynomials", "Random", "Reexport", "SpecialFunctions", "Statistics"]
+git-tree-sha1 = "0df00546373af8eee1598fb4b2ba480b1ebe895c"
 uuid = "717857b8-e6f2-59f4-9121-6e50c889abd2"
-version = "0.8.0"
-
-    [deps.DSP.extensions]
-    OffsetArraysExt = "OffsetArrays"
-
-    [deps.DSP.weakdeps]
-    OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
+version = "0.7.10"
 
 [[deps.DataAPI]]
 git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
@@ -616,6 +683,24 @@ git-tree-sha1 = "b1c2585431c382e3fe5805874bda6aea90a95de9"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.25"
 
+[[deps.Hyperscript]]
+deps = ["Test"]
+git-tree-sha1 = "179267cfa5e712760cd43dcae385d7ea90cc25a4"
+uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+version = "0.0.5"
+
+[[deps.HypertextLiteral]]
+deps = ["Tricks"]
+git-tree-sha1 = "7134810b1afce04bbc1045ca1985fbe81ce17653"
+uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
+version = "0.9.5"
+
+[[deps.IOCapture]]
+deps = ["Logging", "Random"]
+git-tree-sha1 = "b6d6bfdd7ce25b0f9b2f6b3dd56b2673a66c8770"
+uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
+version = "0.2.5"
+
 [[deps.IntelOpenMP_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl"]
 git-tree-sha1 = "10bd689145d2c3b2a9844005d01087cc1194e79e"
@@ -831,6 +916,11 @@ git-tree-sha1 = "abf88ff67f4fd89839efcae2f4c39cbc4ecd0846"
 uuid = "5ced341a-0733-55b8-9ab6-a4889d929147"
 version = "1.10.0+1"
 
+[[deps.MIMEs]]
+git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
+uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
+version = "0.1.4"
+
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]
 git-tree-sha1 = "f046ccd0c6db2832a9f639e2c669c6fe867e5f4f"
@@ -990,6 +1080,12 @@ git-tree-sha1 = "8489905bcdbcfac64d1daa51ca07c0d8f0283821"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.8.1"
 
+[[deps.Peaks]]
+deps = ["RecipesBase", "SIMD"]
+git-tree-sha1 = "75d0ce1c30696d77bc60840222d7fc5d549ebf5f"
+uuid = "18e31ff7-3703-566c-8e60-38913d67486b"
+version = "0.5.3"
+
 [[deps.Pipe]]
 git-tree-sha1 = "6842804e7867b115ca9de748a0cf6b364523c16d"
 uuid = "b98c9c47-44ae-5843-9183-064241ee97a0"
@@ -1037,6 +1133,12 @@ version = "1.40.9"
     IJulia = "7073ff75-c697-5162-941a-fcdaad2a7d2a"
     ImageInTerminal = "d8c32880-2388-543b-8c61-d9f865259254"
     Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+
+[[deps.PlutoUI]]
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
+git-tree-sha1 = "eba4810d5e6a01f612b948c9fa94f905b49087b0"
+uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+version = "0.7.60"
 
 [[deps.Polynomials]]
 deps = ["LinearAlgebra", "OrderedCollections", "RecipesBase", "Requires", "Setfield", "SparseArrays"]
@@ -1166,6 +1268,12 @@ version = "0.5.1+0"
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 version = "0.7.0"
 
+[[deps.SIMD]]
+deps = ["PrecompileTools"]
+git-tree-sha1 = "52af86e35dd1b177d051b12681e1c581f53c281b"
+uuid = "fdea26ae-647d-5447-a871-4b548cad5224"
+version = "3.7.0"
+
 [[deps.Scratch]]
 deps = ["Dates"]
 git-tree-sha1 = "3bac05bc7e74a75fd9cba4295cde4045d9fe2386"
@@ -1293,6 +1401,11 @@ uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.11.3"
+
+[[deps.Tricks]]
+git-tree-sha1 = "7822b97e99a1672bfb1b49b668a6d46d58d8cbcb"
+uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
+version = "0.1.9"
 
 [[deps.URIs]]
 git-tree-sha1 = "67db6cc7b3821e19ebe75791a9dd19c9b1188f2b"
@@ -1658,7 +1771,12 @@ version = "1.4.1+1"
 # ╠═95d0b380-fe7b-4539-b9f7-aa1cd7be7cff
 # ╠═01f98a9a-ace2-43cb-aa12-db5640cb3d79
 # ╠═df8ac436-b27c-4001-9960-357f477b446b
-# ╠═9146eef3-be4c-4395-8242-0fe82bbf5e97
+# ╠═20a0ff42-91b2-4ed1-b7e3-7fd3c704e0aa
+# ╠═645f615d-6f83-47a0-8323-758318ecd106
+# ╠═a204e723-9d2a-43b3-b096-b8b6c2fc3e07
+# ╟─9f35af0b-6745-4229-85a0-617beb0ffd63
+# ╠═f60bb7b7-7d81-45f0-b09b-3ea32169b262
+# ╠═71c04459-114c-4f49-b14e-5757005f70b3
 # ╠═668ee705-b939-4b64-8973-22c3883a545a
 # ╠═e3aa55ec-6427-426c-9046-042dc24ba252
 # ╟─00000000-0000-0000-0000-000000000001
