@@ -78,6 +78,18 @@ SynthDef(\EnvSin2, {
 )
 
 
+(
+~l1b = Pbind(
+	\instrument, \EnvSin2,
+	\dur, Pn(0,~np),
+	\mode, Pseq(Array.fill(~nf,{arg i; 0.8 - (i*0.8/~nf)})),
+	\ampdb, Pn(-30,~np),
+	\freq, Pseq(~freqs),
+	\amps, Pseq(~envs),
+	\tmp, Pseq(~tmps),
+	\chan,0,
+).play();
+)
 /// FIXED PATTERNS
 
 (
@@ -126,7 +138,7 @@ SynthDef(\EnvSin2, {
 	\sus,3.0,
 	\ampdb, Pn(0,~np),
 	\partiel, Pseq(~ps),
-	\chan,0,
+	\chan,1,
 );
 ~n3 = Pbind(
 	\instrument, \EnvNoise,
@@ -174,8 +186,10 @@ Pbindef(\cenv1,
 	\p5, Prand([11,12,13,14],inf),
 	\harm, Pfunc({~h1}),
 	\amp, Pfunc({~g1}),
-	\out, 0,
+	\chan, 0,
 );
+)
+(
 Pbindef(\cenv2,
 	\instrument, \CEnvSin,
 	\dur, Pwhite(0.5,3.0,inf),
@@ -189,7 +203,7 @@ Pbindef(\cenv2,
 	\p5, Prand([11,12,13,14],inf),
 	\harm, Pfunc({~h2}),
 	\amp, Pfunc({~g2}),
-	\out, 1,
+	\chan, 1,
 );
 )
 
