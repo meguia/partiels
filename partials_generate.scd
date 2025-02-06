@@ -28,6 +28,7 @@ s.options.memSize = 8192*32;
 };
 )
 
+
 //// SYNTHS ///////
 
 (
@@ -81,9 +82,9 @@ SynthDef(\EnvSin2, {
 (
 ~l1b = Pbind(
 	\instrument, \EnvSin2,
-	\dur, Pn(0,~np),
+	\dur, Pn(0,~nf),
 	\mode, Pseq(Array.fill(~nf,{arg i; 0.8 - (i*0.8/~nf)})),
-	\ampdb, Pn(-30,~np),
+	\ampdb, Pn(-30,~nf),
 	\freq, Pseq(~freqs),
 	\amps, Pseq(~envs),
 	\tmp, Pseq(~tmps),
@@ -97,17 +98,17 @@ SynthDef(\EnvSin2, {
 ~ps = ~po.scramble;
 ~l1 = Pbind(
 	\instrument, \EnvSin,
-	\dur, Pn(0,~np),
+	\dur, Pn(0,~nf),
 	\mode, Pseq(Array.fill(~nf,{arg i; 0.8 - (i*0.8/~nf)})),
-	\ampdb, Pn(0,~np),
+	\ampdb, Pn(0,~nf),
 	\partiel, Pseq(~po),
-	\chan,1,
+	\chan,0,
 );
 ~l1b = Pbind(
 	\instrument, \EnvSin2,
-	\dur, Pn(0,~np),
+	\dur, Pn(0,~nf),
 	\mode, Pseq(Array.fill(~nf,{arg i; 0.8 - (i*0.8/~nf)})),
-	\ampdb, Pn(-20,~np),
+	\ampdb, Pn(-20,~nf),
 	\freq, Pseq(~freqs),
 	\amps, Pseq(~envs),
 	\tmp, Pseq(~tmps),
@@ -115,44 +116,43 @@ SynthDef(\EnvSin2, {
 );
 ~l2 = Pbind(
 	\instrument, \EnvSin,
-	\dur, Pn(0.06,~np),
+	\dur, Pn(0.06,~nf),
 	\mode, Pseq(Array.fill(~nf,{arg i; 0.8 - (i*0.8/~nf)})),
-	\ampdb, Pn(0,~np),
+	\ampdb, Pn(0,~nf),
 	\partiel, Pseq(~ps),
 	\chan,0,
 );
 ~n1 = Pbind(
 	\instrument, \EnvNoise,
-	\dur, Pn(0,~np),
+	\dur, Pn(0,~nf),
 	\mode, Pseq(Array.fill(~nf,{arg i; 0.8 - (i*0.8/~nf)})),
-	\ampdb, Pn(30,~np),
-	\qf, Pn(300,~np),
+	\ampdb, Pn(30,~nf),
+	\qf, Pn(300,~nf),
 	\partiel, Pseq(~po),
 	\chan,0,
 );
 ~l3 = Pbind(
 	\instrument, \EnvSin,
-	\dur, Pn(0.1,~np),
+	\dur, Pn(0.1,~nf),
 	\mode, Pseq(Array.fill(~nf,{arg i; 0.8 - (i*0.8/~nf)})),
 	\atk, 20.0,
 	\sus,3.0,
-	\ampdb, Pn(0,~np),
+	\ampdb, Pn(0,~nf),
 	\partiel, Pseq(~ps),
-	\chan,1,
+	\chan,0,
 );
 ~n3 = Pbind(
 	\instrument, \EnvNoise,
-	\dur, Pn(0,~np),
+	\dur, Pn(0,~nf),
 	\mode, Pseq(Array.fill(~nf,{arg i; 0.8 - (i*0.8/~nf)})),
 	\atk, 20.0,
 	\sus,3.0,
-	\ampdb, Pn(30,~np),
-	\qf, Pn(300,~np),
+	\ampdb, Pn(30,~nf),
+	\qf, Pn(300,~nf),
 	\partiel, Pseq(~po),
 	\chan,0,
 );
 )
-
 
 
 ~l1.play(); // og
