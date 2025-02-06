@@ -39,7 +39,7 @@ md"""
 begin
 	# original sound
 	namedir1 = "david/"
-	fname_original = "gong1.wav"
+	fname_original = "gong2.wav"
 	x,fs,bits,chunk = wavread(namedir1*fname_original)
 	f = rfftfreq(length(x), fs)
     y = rfft(x)
@@ -68,14 +68,20 @@ function extendpar(h, Na, decimate; slope = 10.0, thr = -4)
     return trs,amp
 end    
 
+# ╔═╡ 223e0f51-3da2-4cb6-b3b3-66073233b3a9
+
+
 # ╔═╡ 645f615d-6f83-47a0-8323-758318ecd106
 begin
-	fmax = 5000
+	fmax = 3000
 	nmax = findfirst(f .> fmax)
 	y2 = 10*log10.(abs.(y[1:nmax]))
 	y3 = filt(digitalfilter(Lowpass(0.1), Butterworth(3)), y2)
 end;
 	
+
+# ╔═╡ d6189e37-3397-4df6-a22b-e75d864bf504
+
 
 # ╔═╡ 9f35af0b-6745-4229-85a0-617beb0ffd63
 md"""
@@ -1957,7 +1963,9 @@ version = "1.4.1+1"
 # ╠═df8ac436-b27c-4001-9960-357f477b446b
 # ╟─efcea711-4eaf-40c4-9d27-1284b595bdd8
 # ╠═20a0ff42-91b2-4ed1-b7e3-7fd3c704e0aa
+# ╠═223e0f51-3da2-4cb6-b3b3-66073233b3a9
 # ╠═645f615d-6f83-47a0-8323-758318ecd106
+# ╠═d6189e37-3397-4df6-a22b-e75d864bf504
 # ╠═a204e723-9d2a-43b3-b096-b8b6c2fc3e07
 # ╠═9f35af0b-6745-4229-85a0-617beb0ffd63
 # ╠═71c04459-114c-4f49-b14e-5757005f70b3
