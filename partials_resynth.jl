@@ -38,8 +38,8 @@ md"""
 # Findpeaks (supervised) >> wav
 begin
 	# original sound
-	namedir1 = "paf/"
-	fname_original = "L1.WAV"
+	namedir1 = "david/"
+	fname_original = "gong1.wav"
 	x,fs,bits,chunk = wavread(namedir1*fname_original)
 	f = rfftfreq(length(x), fs)
     y = rfft(x)
@@ -124,10 +124,10 @@ begin
 	#decimate = 441
 	#fs = 44100
 	#maxpars = 30 # cantidad maxima de parciales
-	decimate = 96
+	decimate = 480
 	#fs = 48000
 	maxpars = size(idxs)[1]
-	N = 12*fs
+	N = 16*fs
 	cutdec = 10
 	Na = length(1:decimate:N)
 	if iseven(decimate)
@@ -220,7 +220,7 @@ begin
 	#sumo todos en fase y con la amplitud original
 	s=sum(sins,dims=2)
 	maxs = maximum(abs.(s))
-	wavwrite(s/maxs,"campana_paf4.wav";Fs=fs)
+	wavwrite(s/maxs,"gong_2.wav";Fs=fs)
 	plot((1:decimate:N)/fs,amps[:,1:length(files)],size=(1200,400),legend=false)
 end
 
