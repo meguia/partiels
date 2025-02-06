@@ -19,16 +19,20 @@ end
 # ╔═╡ 4b36e0a0-e20b-11ef-3bb4-191b803c6a25
 using WAV, DSP, FFTW, LsqFit, Plots, JLD, Peaks, PlutoUI
 
+# ╔═╡ c5459143-cf89-4e33-9981-1aeefa738c11
+md"""
+# CONVENIENCE FUNCTIONS
+"""
+
 # ╔═╡ 06274aa0-5c40-4569-9b93-12b6dfb39bcc
 function sigmoid(z,z0,s)
     return 1.0 ./ (1.0 .+ exp.(-s*(z.-z0)))
 end
 
-# ╔═╡ 95d0b380-fe7b-4539-b9f7-aa1cd7be7cff
-function padarray(x,val,N)
-    n0 = length(x)
-    return [x; fill(val,N-n0)]  
-end    
+# ╔═╡ efcea711-4eaf-40c4-9d27-1284b595bdd8
+md"""
+# PEAK ANALYSIS
+"""
 
 # ╔═╡ 20a0ff42-91b2-4ed1-b7e3-7fd3c704e0aa
 # Findpeaks (supervised) >> wav
@@ -90,7 +94,7 @@ begin
 	sel = @. (pks.proms > prom) && (pks.heights > height) && (pks.widths > width)
 	idxs = pks.indices[sel]
 	db = pks.heights[sel]
-	plot(f[1:nmax],y2)
+	plot(f[1:nmax],y2,size=(1200,300))
 	scatter!(f[idxs],y3[idxs],title=string(length(idxs)))
 end	
 
@@ -107,6 +111,11 @@ begin
 		wavwrite(xbp,namedir1 * "Lp" * lpad(n,2,"0") * ".wav",Fs=fs)
 	end
 end	
+
+# ╔═╡ 725837ac-d750-4778-a294-bd135916fdb3
+md"""
+# RESYNTHESIS
+"""
 
 # ╔═╡ 668ee705-b939-4b64-8973-22c3883a545a
 begin
@@ -197,9 +206,6 @@ function partial2sin(fname,decimate,N;cutend=1000,cutdec=10,thr=-4)
     return s, ad, f1, t1, a1
 end 
 
-# ╔═╡ 3882b866-917d-49ca-811f-66111a0ece4b
-
-
 # ╔═╡ e3aa55ec-6427-426c-9046-042dc24ba252
 begin
 	#m = 6
@@ -215,8 +221,13 @@ begin
 	s=sum(sins,dims=2)
 	maxs = maximum(abs.(s))
 	wavwrite(s/maxs,"campana_paf4.wav";Fs=fs)
-	plot((1:decimate:N)/fs,amps[:,1:length(files)],size=(1200,600),legend=false)
+	plot((1:decimate:N)/fs,amps[:,1:length(files)],size=(1200,400),legend=false)
 end
+
+# ╔═╡ 53236d68-f684-463a-9638-d6321341a90d
+md"""
+# SAVE DATA
+"""
 
 # ╔═╡ 089c225d-2007-49bf-aefa-7efb6751fb12
 begin
@@ -254,6 +265,11 @@ begin
 	end
 	close(fout3)
 end
+
+# ╔═╡ d590224b-8636-40c7-a553-280cb7f79585
+md"""
+# DEBUG
+"""
 
 # ╔═╡ 980e64e0-e41d-4b6f-9391-e1e3bd45c0d6
 begin
@@ -318,6 +334,21 @@ begin
 	scatter!(t1,10 .^a1)
 	plot!(trs,10 .^amp)
 end	
+
+# ╔═╡ 739563a6-6157-4e57-8d42-201ce0ed80bc
+html"""
+<style>
+main {
+		margin: 0 auto;
+		max-width: 1200px;
+    	padding-left: max(100px, 5%);
+    	padding-right: max(100px, 5%);
+	}
+input[type*="range"] {
+	width: 40%;
+}
+</style>
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1919,25 +1950,29 @@ version = "1.4.1+1"
 
 # ╔═╡ Cell order:
 # ╠═4b36e0a0-e20b-11ef-3bb4-191b803c6a25
+# ╟─c5459143-cf89-4e33-9981-1aeefa738c11
 # ╠═06274aa0-5c40-4569-9b93-12b6dfb39bcc
-# ╠═95d0b380-fe7b-4539-b9f7-aa1cd7be7cff
 # ╠═9a80b86b-dee2-47bf-842e-74bc8eb124df
 # ╠═01f98a9a-ace2-43cb-aa12-db5640cb3d79
 # ╠═df8ac436-b27c-4001-9960-357f477b446b
+# ╟─efcea711-4eaf-40c4-9d27-1284b595bdd8
 # ╠═20a0ff42-91b2-4ed1-b7e3-7fd3c704e0aa
 # ╠═645f615d-6f83-47a0-8323-758318ecd106
 # ╠═a204e723-9d2a-43b3-b096-b8b6c2fc3e07
 # ╠═9f35af0b-6745-4229-85a0-617beb0ffd63
 # ╠═71c04459-114c-4f49-b14e-5757005f70b3
+# ╟─725837ac-d750-4778-a294-bd135916fdb3
 # ╠═668ee705-b939-4b64-8973-22c3883a545a
-# ╠═3882b866-917d-49ca-811f-66111a0ece4b
 # ╠═e3aa55ec-6427-426c-9046-042dc24ba252
+# ╟─53236d68-f684-463a-9638-d6321341a90d
 # ╠═089c225d-2007-49bf-aefa-7efb6751fb12
 # ╠═4914575f-e851-4431-9bb6-802566354090
 # ╠═c0632ecd-d469-4f8e-b110-7e6b94e974ca
 # ╠═1361c285-7dff-4bb3-a1fa-123d9e7115e9
+# ╟─d590224b-8636-40c7-a553-280cb7f79585
 # ╠═980e64e0-e41d-4b6f-9391-e1e3bd45c0d6
 # ╠═884fd527-b65a-4339-ade8-a6b2cbffb4d4
 # ╠═431f89bf-e8ad-4fcb-b9da-f79bf089a3b5
+# ╠═739563a6-6157-4e57-8d42-201ce0ed80bc
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
