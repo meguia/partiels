@@ -42,7 +42,7 @@ begin
 end;
 
 # ╔═╡ 01f98a9a-ace2-43cb-aa12-db5640cb3d79
-function extendpar(h, Na, decimate; slope = 10.0, thr = -80)
+function extendpar(h, Na, decimate; slope = 10.0, thr = -4)
 	#decimate the envelope and adds an exponential decay at the end if necessary
 	#returns time and envelope of size length(1:decimate:N)
     hrs = abs.(Filters.resample(h,1/decimate))
@@ -115,7 +115,7 @@ begin
 	#decimate = 441
 	#fs = 44100
 	#maxpars = 30 # cantidad maxima de parciales
-	decimate = 960
+	decimate = 96
 	#fs = 48000
 	maxpars = size(idxs)[1]
 	N = 12*fs
@@ -128,15 +128,62 @@ begin
 	end	
 	amps = zeros(Float64,Na,maxpars);
 	freqs = zeros(Float64,maxpars);
+	ts = zeros(Float64,4,maxpars);
+	es = zeros(Float64,4,maxpars);
 end;
 
+# ╔═╡ 9a80b86b-dee2-47bf-842e-74bc8eb124df
+function findenvelope(h; thr = -4.0, decimate = 960)
+	hrs = abs.(Filters.resample(h,1/decimate))
+	nm = argmax(hrs)
+	cr = findfirst(log10.(hrs) .> log10(hrs[nm])-1) 
+	if isnothing(cr)
+		cr1 = 1
+	else
+		cr1 = cr
+	end	
+	cr = findfirst(log10.(hrs[nm:end]) .< thr) 
+	if isnothing(cr)
+		cr2 = length(hrs)
+	else
+		cr2 = cr + nm
+	end	
+    trs = (1:Na)*decimate/fs
+	@. model2(x, p) = p[1]+x*p[2]
+    p2 = [-1.0, -1.0]
+    lb2 = [-10, -1.0]
+    ub2 = [10.0, 20.0]
+    fit2 = curve_fit(model2, trs[cr1:nm], log10.(hrs[cr1:nm]), p2, lower=lb2, upper=ub2)
+	pm = model2(trs[nm],coef(fit2))
+	@. model1(x, p) = pm-(x-trs[nm])*p[1]
+    p1 = [1.0]
+    lb1 = [0.1]
+    ub1 = [10.0]
+    fit1 = curve_fit(model1, trs[nm:cr2], log10.(hrs[nm:cr2]), p1, lower=lb1, upper=ub1)
+	crb = findfirst(model1(trs[nm:end],coef(fit1)) .< 2*thr) 
+	if isnothing(crb)
+		cr3 = length(hrs)
+	else
+		cr3 = crb + nm
+	end	
+	t1 = [0, trs[cr1], trs[nm], trs[cr3]]
+	a1 = [2*thr, model2(trs[cr1],coef(fit2)),pm,model1(trs[cr3],coef(fit1))]
+	amp = zeros(length(trs))
+	amp[1:cr1] = (a1[2]-a1[1])*trs[1:cr1]/trs[cr1] .+ a1[1]
+	amp[cr1+1:nm] = model2(trs[cr1+1:nm],coef(fit2))
+	amp[nm+1:end] = model1(trs[nm+1:end],coef(fit1))
+	return t1, 10 .^a1, 10 .^amp
+end
+
 # ╔═╡ df8ac436-b27c-4001-9960-357f477b446b
-function partial2sin(fname,decimate,N;cutend=1000,cutdec=10)
+function partial2sin(fname,decimate,N;cutend=1000,cutdec=10,thr=-4)
 	#create sin from wav in fname (single frequency)
     x,fs,bits,chunk = wavread(fname)
     h = abs.(hilbert(x))[:]
     # Envolvente decimada y extendida
-    td, ad = extendpar(h,Na,decimate)
+    # td, ad = extendpar(h,Na,decimate)
+	# Envolvente de 4 puntos
+	t1, a1, ad = findenvelope(h; thr=thr,decimate=decimate)
 	f = fftfreq(length(x), fs)
     y = fft(x)
     s1, s2 = findmax(abs.(y))
@@ -147,8 +194,11 @@ function partial2sin(fname,decimate,N;cutend=1000,cutdec=10)
 	deleteat!(a,length(a)-cutdec*decimate+1:length(a))
     t = (0:length(a)-1)/fs
     s = a.*sin.(2*pi*f1*t)
-    return s, ad, f1
+    return s, ad, f1, t1, a1
 end 
+
+# ╔═╡ 3882b866-917d-49ca-811f-66111a0ece4b
+
 
 # ╔═╡ e3aa55ec-6427-426c-9046-042dc24ba252
 begin
@@ -159,7 +209,7 @@ begin
 	sins = Array{Float64,2}(undef,N0,length(files))
 	for (n,fname) in enumerate(files)
 	    print(fname * "/")
-	    sins[:,n], amps[:,n], freqs[n] = partial2sin(namedir1 * fname,decimate,N)
+	    sins[:,n], amps[:,n], freqs[n], ts[:,n], es[:,n] = partial2sin(namedir1 * fname,decimate,N)
 	end
 	#sumo todos en fase y con la amplitud original
 	s=sum(sins,dims=2)
@@ -167,9 +217,6 @@ begin
 	wavwrite(s/maxs,"campana_paf4.wav";Fs=fs)
 	plot((1:decimate:N)/fs,amps[:,1:length(files)],size=(1200,600),legend=false)
 end
-
-# ╔═╡ fbcdc11d-f2ab-4c96-96e8-41714d1883b9
-amps[amps .< 1e-12] .= 0
 
 # ╔═╡ 089c225d-2007-49bf-aefa-7efb6751fb12
 begin
@@ -181,14 +228,96 @@ begin
 	close(fout)
 end
 
-# ╔═╡ 1361c285-7dff-4bb3-a1fa-123d9e7115e9
+# ╔═╡ 4914575f-e851-4431-9bb6-802566354090
 begin
-	fout2 = open("amps.txt", "w")
+	fout1 = open("envs.txt", "w")
 	for n in 1:maxpars
-		println(fout2, join([string(a) for a in round.(amps[:,n],sigdigits=3)], " "))
+		println(fout1, join([string(a) for a in round.(es[:,n],sigdigits=3)], " "))
+	end
+	close(fout1)
+end
+
+# ╔═╡ c0632ecd-d469-4f8e-b110-7e6b94e974ca
+begin
+	fout2 = open("tmps.txt", "w")
+	for n in 1:maxpars
+		println(fout2, join([string(a) for a in round.(ts[2:end,n] .- 0.06,sigdigits=2)], " "))
 	end
 	close(fout2)
 end
+
+# ╔═╡ 1361c285-7dff-4bb3-a1fa-123d9e7115e9
+begin
+	fout3 = open("amps.txt", "w")
+	for n in 1:maxpars
+		println(fout3, join([string(a) for a in round.(amps[:,n],sigdigits=3)], " "))
+	end
+	close(fout3)
+end
+
+# ╔═╡ 980e64e0-e41d-4b6f-9391-e1e3bd45c0d6
+begin
+	thr = -4
+	x1,fs1,bits1,chunk1 = wavread(namedir1 * "Lp02.wav")
+    h = abs.(hilbert(x1))[:]
+	hrs = abs.(Filters.resample(h,1/decimate))
+	nm = argmax(hrs)
+	cr = findfirst(log10.(hrs) .> log10(hrs[nm])-1) 
+	if isnothing(cr)
+		cr1 = 1
+	else
+		cr1 = cr
+	end	
+	cr = findfirst(log10.(hrs[nm:end]) .< thr) 
+	if isnothing(cr)
+		cr2 = length(hrs)
+	else
+		cr2 = cr + nm
+	end	
+    trs = (1:Na)*decimate/fs
+	@. model2(x, p) = p[1]+x*p[2]
+    p2 = [-1.0, -1.0]
+    lb2 = [-10, -1.0]
+    ub2 = [10.0, 20.0]
+    fit2 = curve_fit(model2, trs[cr1:nm], log10.(hrs[cr1:nm]), p2, lower=lb2, upper=ub2)
+	pm = model2(trs[nm],coef(fit2))
+	@. model1(x, p) = pm-(x-trs[nm])*p[1]
+    p1 = [1.0]
+    lb1 = [0.1]
+    ub1 = [10.0]
+    fit1 = curve_fit(model1, trs[nm:cr2], log10.(hrs[nm:cr2]), p1, lower=lb1, upper=ub1)
+	println(coef(fit1))
+	println(coef(fit2))
+	cr = findfirst(model1(trs[nm:end],coef(fit1)) .< 2*thr) 
+	if isnothing(cr)
+		cr3 = length(hrs)
+	else
+		cr3 = cr + nm
+	end
+	t1 = [0, trs[cr1], trs[nm], trs[cr3]]
+	a1 = [2*thr, model2(trs[cr1],coef(fit2)),pm,model1(trs[cr3],coef(fit1))]
+	println(t1)
+	println(a1)
+	plot(trs,log10.(hrs))
+	scatter!(t1,a1)
+	amp = zeros(length(trs))
+	amp[1:cr1] = (a1[2]-a1[1])*trs[1:cr1]/trs[cr1] .+ a1[1]
+	amp[cr1+1:nm] = model2(trs[cr1+1:nm],coef(fit2))
+	amp[nm+1:end] = model1(trs[nm+1:end],coef(fit1))
+	plot!(trs[nm:end],model1(trs[nm:end],coef(fit1)))
+	plot!(trs[cr1:nm],model2(trs[cr1:nm],coef(fit2)))
+	plot!(trs,amp)
+end	
+
+# ╔═╡ 884fd527-b65a-4339-ade8-a6b2cbffb4d4
+findfirst(model1(trs[nm:end],coef(fit1)) .< -8)
+
+# ╔═╡ 431f89bf-e8ad-4fcb-b9da-f79bf089a3b5
+begin
+	plot(trs,hrs)
+	scatter!(t1,10 .^a1)
+	plot!(trs,10 .^amp)
+end	
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1792,6 +1921,7 @@ version = "1.4.1+1"
 # ╠═4b36e0a0-e20b-11ef-3bb4-191b803c6a25
 # ╠═06274aa0-5c40-4569-9b93-12b6dfb39bcc
 # ╠═95d0b380-fe7b-4539-b9f7-aa1cd7be7cff
+# ╠═9a80b86b-dee2-47bf-842e-74bc8eb124df
 # ╠═01f98a9a-ace2-43cb-aa12-db5640cb3d79
 # ╠═df8ac436-b27c-4001-9960-357f477b446b
 # ╠═20a0ff42-91b2-4ed1-b7e3-7fd3c704e0aa
@@ -1800,9 +1930,14 @@ version = "1.4.1+1"
 # ╠═9f35af0b-6745-4229-85a0-617beb0ffd63
 # ╠═71c04459-114c-4f49-b14e-5757005f70b3
 # ╠═668ee705-b939-4b64-8973-22c3883a545a
+# ╠═3882b866-917d-49ca-811f-66111a0ece4b
 # ╠═e3aa55ec-6427-426c-9046-042dc24ba252
-# ╠═fbcdc11d-f2ab-4c96-96e8-41714d1883b9
 # ╠═089c225d-2007-49bf-aefa-7efb6751fb12
+# ╠═4914575f-e851-4431-9bb6-802566354090
+# ╠═c0632ecd-d469-4f8e-b110-7e6b94e974ca
 # ╠═1361c285-7dff-4bb3-a1fa-123d9e7115e9
+# ╠═980e64e0-e41d-4b6f-9391-e1e3bd45c0d6
+# ╠═884fd527-b65a-4339-ade8-a6b2cbffb4d4
+# ╠═431f89bf-e8ad-4fcb-b9da-f79bf089a3b5
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
