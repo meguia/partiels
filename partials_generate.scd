@@ -126,7 +126,7 @@ SynthDef(\EnvSin2, {
 	\instrument, \EnvNoise,
 	\dur, Pn(0,~nf),
 	\mode, Pseq(Array.fill(~nf,{arg i; 0.8 - (i*0.8/~nf)})),
-	\ampdb, Pn(30,~nf),
+	\ampdb, Pn(35,~nf),
 	\qf, Pn(300,~nf),
 	\partiel, Pseq(~po),
 	\chan,0,
@@ -176,14 +176,14 @@ Pbindef.clear;
 Pbindef(\cenv1,
 	\instrument, \CEnvSin,
 	\dur, Pwhite(0.5,3.0,inf),
-	\atk, Pwhite(0.01,0.5,inf),
-	\decay, Pwhite(0.7,3.0,inf),
-	\mode, Pwhite(0.2,1.0,inf),
-	\p1, Pwrand([0,1,2],[0.5,0.1,0.1].normalizeSum,inf),
-	\p2, Pwrand([2,3,1],[0.5,0.1,0.1].normalizeSum,inf),
-	\p3, Prand([4,5,6],inf),
-	\p4, Prand([7,8,9,10],inf),
-	\p5, Prand([11,12,13,14],inf),
+	\atk, Pwhite(0.1,0.9,inf),
+	\decay, Pwhite(1.7,6.0,inf),
+	\mode, Pwhite(0.5,1.0,inf),
+	\p1, Pwrand([0,1,2,3,4],[0.5,0.1,0.2,0.1,0.2].normalizeSum,inf),
+	\p2, Pwrand([2,3,1,5,6],[0.5,0.1,0.1,0.1,0.2].normalizeSum,inf),
+	\p3, Prand([7,8,9,10,11],inf),
+	\p4, Prand([12,13,14,15],inf),
+	\p5, Prand([16,17,18,19],inf),
 	\harm, Pfunc({~h1}),
 	\amp, Pfunc({~g1}),
 	\chan, 0,
@@ -193,17 +193,71 @@ Pbindef(\cenv1,
 Pbindef(\cenv2,
 	\instrument, \CEnvSin,
 	\dur, Pwhite(0.5,3.0,inf),
-	\atk, Pwhite(0.01,0.5,inf),
-	\decay, Pwhite(0.7,3.0,inf),
-	\mode, Pwhite(0.2,1.0,inf),
-	\p1, Pwrand([0,1,2],[0.1,0.5,0.1].normalizeSum,inf),
-	\p2, Pwrand([2,3,1],[0.1,0.5,0.1].normalizeSum,inf),
-	\p3, Prand([4,5,6],inf),
-	\p4, Prand([7,8,9,10],inf),
-	\p5, Prand([11,12,13,14],inf),
+	\atk, Pwhite(0.1,0.5,inf),
+	\decay, Pwhite(0.9,5.0,inf),
+	\mode, Pwhite(0.5,1.0,inf),
+	\p1, Pwrand([0,1,2,3,4],[0.1,0.5,0.1,0.2,0.2].normalizeSum,inf),
+	\p2, Pwrand([2,3,1,5,6],[0.1,0.5,0.1,0.2,0.2].normalizeSum,inf),
+	\p3, Prand([7,8,9,10,11],inf),
+	\p4, Prand([12,13,14,15],inf),
+	\p5, Prand([16,17,18,19],inf),
 	\harm, Pfunc({~h2}),
 	\amp, Pfunc({~g2}),
-	\chan, 1,
+	\chan, 0,
+);
+)
+
+(
+Pbindef(\perp1,
+	\instrument, \CEnvSin,
+	\dur, Pseq([3.0,1.0],inf), // Prand
+	\atk, Pseq([0.002,0.003],inf),
+	\decay, Pseq([0.8,0.6],inf), // Prand
+	\mode, Pseq([0.5,0.5],inf),
+	\p1, Pseq([0],inf),
+	\p2, Pseq([1],inf),
+	\p3, Prand([2,3],inf),
+	\p4, Prand([4,5],inf),
+	\p5, Pseq([6],inf),
+	\harm, Pfunc({~h3}),
+	\amp, Pfunc({~g3}),
+	\chan,0,
+);
+)
+
+(
+Pbindef(\third1,
+	\instrument, \CEnvSin,
+	\dur, Prand([1/3,2/3],inf), // Prand
+	\atk, Pseq([0.001,0.001],inf),
+	\decay, Pseq([0.2,0.15],inf),
+	\mode, Pseq([0.4,0.2],inf),
+	\p1, Pseq([10],inf),
+	\p2, Pseq([11],inf),
+	\p3, Pseq([12],inf),
+	\p4, Pseq([13],inf),
+	\p5, Pseq([14],inf),
+	\harm, Pfunc({~h5}),
+	\amp, Pfunc({~g5}),
+	\chan,0,
+);
+)
+
+(
+Pbindef(\tingle1,
+	\instrument, \CEnvSin,
+	\dur, Pwrand([0.125,0.25,0.5],[0.1,0.5,0.5].normalizeSum,inf),
+	\atk, Pseq([0.001],inf),
+	\decay, Pseq([0.1],inf),
+	\mode, Pseq([0.4],inf),
+	\p1, Pseq([10],inf),
+	\p2, Pseq([11],inf),
+	\p3, Prand([13,11],inf),
+	\p4, Prand([16,15],inf),
+	\p5, Prand([14,15,17,18],inf),
+	\harm, Pfunc({~h7}),
+	\amp, Pfunc({~g7}),
+	\chan,0,
 );
 )
 
@@ -223,10 +277,32 @@ Pbindef(\cenv2).fadeTime = 3.0;
 t.stop;
 t = TempoClock(20/60);
 
+(
+~nk.knob3.onChange = {|val| ~g3 = val.linexp(0,127,0.001,0.6);};
+~nk.knob4.onChange = {|val| ~g4 = val.linexp(0,127,0.001,0.6);};
+~nk.knob5.onChange = {|val| ~g5 = val.linexp(0,127,0.001,0.6);};
+~nk.knob6.onChange = {|val| ~g6 = val.linexp(0,127,0.001,0.6);};
+~nk.knob7.onChange = {|val| ~g7 = val.linexp(0,127,0.001,0.6);};
+~nk.knob8.onChange = {|val| ~g8 = val.linexp(0,127,0.001,0.6);};
+~nk.fader3.onChange = {|val| ~h3 = val.linexp(0,127,10.0,1.0);};
+~nk.fader4.onChange = {|val| ~h4 = val.linexp(0,127,10.0,1.0);};
+~nk.fader5.onChange = {|val| ~h5 = val.linexp(0,127,10.0,1.0);};
+~nk.fader6.onChange = {|val| ~h6 = val.linexp(0,127,10.0,1.0);};
+~nk.fader7.onChange = {|val| ~h7 = val.linexp(0,127,10.0,1.0);};
+~nk.fader8.onChange = {|val| ~h8 = val.linexp(0,127,10.0,1.0);};
+)
+
+// SECOND PART CONTROLS 2-8 start at 0
+(
+Pbindef(\perp1).play(t, quant: Quant(4));
+Pbindef(\third1).play(t, quant: Quant(4,1));
+Pbindef(\tingle1).play(t, quant: Quant(4,1));
+Pbindef(\tingle1).play(t, quant: Quant(4,1));
+)
 // START LONG NOTES CCONTROL 1,2
 (
 Pbindef(\cenv1).play(t);
 Pbindef(\cenv2).play(t);
 )
 
-~tempoCh.(t,60, 20);
+~tempoCh.(t,90, 20);
